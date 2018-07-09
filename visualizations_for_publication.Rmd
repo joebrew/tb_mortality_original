@@ -1,0 +1,2448 @@
+---
+title: "Tables and figures for publications"
+author: "Alberto Garcia-Basteiro and Joe Brew"
+date: "March 28, 2017"
+fig_height: 6
+fig_width: 8
+# output: ioslides_presentation
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = NA, 
+               echo = FALSE, 
+               warning = FALSE, 
+               message = FALSE, 
+               error = TRUE, 
+               cache = FALSE,
+               dpi = 300,
+               fig.path = 'figures/')
+```
+
+```{r, results = 'hide'}
+# Packages
+library(ggplot2)
+library(cism)
+library(rworldmap)
+library(rgeos)
+library(maptools)
+library(rgdal)
+library(tidyr)
+library(RColorBrewer)
+library(broom)
+library(kableExtra)
+
+# Read in data
+source('make_wide.R')
+
+# Source helpers
+source('helpers.R')
+
+# Get world map
+world <- readOGR('shp/world', 'ne_110m_admin_0_countries')
+```
+
+# Tables
+
+## Descriptive tables
+
+### Global differences by:, age, sex, world region
+
+```{r}
+temp <- df %>%
+  dplyr::select(country,
+                gb_e_pop_num,
+                i_both_all_htb_nd,
+                i_both_all_tb_nd,
+                i_both_all_tbtotal_nd,
+                w_both_all_htb_nd,
+                w_both_all_tb_nd,
+                w_both_all_tbtotal_nd)
+rows1 <- temp[0,]
+for (j in 3:ncol(temp)){
+  rows1[1,j] <- sum(x = temp[,j], na.rm = TRUE)
+}
+rows1$country <- rows1$gb_e_pop_num <- NULL
+
+# Make a function for side-by-siding i and w data
+side_by_side <- function(data){
+  left <- data[,(substr(names(data), 1, 2) == 'i_')]
+  right <- data[,(substr(names(data), 1, 2) == 'w_')]
+  out <- data.frame(value = NA, cbind(t(left), t(right)))
+  names(out) <- c('Value', 'IHME', 'WHO')
+  out$Value <- row.names(out)
+  row.names(out) <- NULL
+  return(out)
+}
+
+rows1 <- side_by_side(rows1)
+# Clean up names
+clean_up <- function(x){
+  ifelse(x == 'i_both_all_htb_nd',
+         'HIV+TB only',
+         ifelse(x == 'i_both_all_tb_nd',
+                'TB only',
+                ifelse(x == 'i_both_all_tbtotal_nd',
+                       'Total TB',
+                       NA)))
+}
+rows1$Value <- clean_up(rows1$Value)
+rows1$Region <- ''
+rows1 <- rows1 %>%
+  dplyr::select(Region, Value, IHME, WHO)
+################################
+# Get second part = WHO region
+temp <- df_region %>%
+  dplyr::select(who_region,
+                i_both_all_htb_nd,
+                i_both_all_tb_nd,
+                i_both_all_tbtotal_nd,
+                w_both_all_htb_nd,
+                w_both_all_tb_nd,
+                w_both_all_tbtotal_nd)
+
+results_list <- list()
+for (i in 1:nrow(temp)){
+  result <- data.frame(region = temp$who_region[i],
+                       side_by_side(temp[i,]))
+  results_list[[i]] <- result
+}
+result <- bind_rows(results_list)
+rows2 <- result
+rows2$Value <- clean_up(rows2$Value)
+names(rows2)[1] <- 'Region'
+
+
+######################
+
+#### ROWS 3 age
+
+# Haven't created these variables (w_both_15plus_htb_nd)
+
+rows3 <- expand.grid(Value = c('Total TB',
+                               'TB only',
+                               'HIV+TB only'),
+                     Region = c('Adults', 'Children'),
+                    IHME = NA,
+                    WHO = NA)
+rows3 <- rows3 %>%
+  dplyr::select(Region, Value, IHME, WHO)
+rows3[rows3$Region == 'Adults' &
+             rows3$Value == 'TB only',
+      c('IHME', 'WHO')] <-
+  c(sum(df$i_both_15plus_tb_nd, na.rm = TRUE),
+    sum(df$w_both_15plus_tb_nd, na.rm = TRUE))
+rows3[rows3$Region == 'Children' &
+             rows3$Value == 'TB only',
+      c('IHME', 'WHO')] <-
+  c(sum(df$i_both_014_tb_nd, na.rm = TRUE),
+    sum(df$w_both_014_tb_nd, na.rm = TRUE))
+
+
+## By sex
+by_sex <- 
+  expand.grid(Value = c('Total TB',
+                               'TB only',
+                               'HIV+TB only'),
+                     Region = c('Male', 'Female'),
+                    IHME = NA,
+                    WHO = NA,
+              Dif = NA)
+by_sex[by_sex$Value == 'Total TB' &
+              by_sex$Region == 'Female',
+       c('IHME', 'WHO')] <- c(sum(df$i_f_15plus_tb_nd,na.rm = TRUE) +
+                                sum(df$i_f_15plus_htb_nd,na.rm = TRUE),
+                              sum(df$w_f_15plus_tb_nd,na.rm = TRUE) +
+                                sum(df$w_f_15plus_htb_nd,na.rm = TRUE))
+by_sex[by_sex$Value == 'Total TB' &
+              by_sex$Region == 'Male',
+       c('IHME', 'WHO')] <- c(sum(df$i_m_15plus_tb_nd,na.rm = TRUE) +
+                                sum(df$i_m_15plus_htb_nd,na.rm = TRUE),
+                              sum(df$w_m_15plus_tb_nd,na.rm = TRUE) +
+                                sum(df$w_m_15plus_htb_nd,na.rm = TRUE))
+
+by_sex[by_sex$Value == 'TB only' &
+              by_sex$Region == 'Female',
+       c('IHME', 'WHO')] <- c(sum(df$i_f_15plus_tb_nd,na.rm = TRUE),
+                              sum(df$w_f_15plus_tb_nd,na.rm = TRUE))
+by_sex[by_sex$Value == 'TB only' &
+              by_sex$Region == 'Male',
+       c('IHME', 'WHO')] <- c(sum(df$i_m_15plus_tb_nd,na.rm = TRUE),
+                              sum(df$w_m_15plus_tb_nd,na.rm = TRUE))
+
+by_sex[by_sex$Value == 'HIV+TB only' &
+              by_sex$Region == 'Female',
+       c('IHME', 'WHO')] <- c(sum(df$i_f_15plus_htb_nd,na.rm = TRUE),
+                              sum(df$w_f_15plus_htb_nd,na.rm = TRUE))
+by_sex[by_sex$Value == 'HIV+TB only' &
+              by_sex$Region == 'Male',
+       c('IHME', 'WHO')] <- c(sum(df$i_m_15plus_htb_nd,na.rm = TRUE),
+                              sum(df$w_m_15plus_htb_nd,na.rm = TRUE))
+  
+
+rows3[rows3$Region == 'Adults' &
+             rows3$Value == 'HIV+TB only',
+      c('IHME', 'WHO')] <-
+  c(sum(df$i_both_15plus_htb_nd, na.rm = TRUE),
+    sum(df$w_both_15plus_htb_nd, na.rm = TRUE))
+rows3[rows3$Region == 'Children' &
+             rows3$Value == 'HIV+TB only',
+      c('IHME', 'WHO')] <-
+  c(sum(df$i_both_014_htb_nd, na.rm = TRUE),
+    sum(df$w_both_014_htb_nd, na.rm = TRUE))
+
+# Get totals for row 3
+rows3[rows3$Region == 'Children' &
+             rows3$Value == 'Total TB',
+      c('IHME', 'WHO')] <-
+  c(rows3 %>%
+      filter(Region == 'Children') %>%
+      summarise(IHME = sum(IHME, na.rm = TRUE),
+                WHO = sum(WHO, na.rm = TRUE)))
+rows3[rows3$Region == 'Adults' &
+             rows3$Value == 'Total TB',
+      c('IHME', 'WHO')] <-
+  c(rows3 %>%
+      filter(Region == 'Adults') %>%
+      summarise(IHME = sum(IHME, na.rm = TRUE),
+                WHO = sum(WHO, na.rm = TRUE)))
+
+x <-
+  bind_rows(rows1,
+      rows2,
+      rows3,
+      by_sex)
+x$x <- NA
+x$x[1:3] <- 'total'
+x$x[4:21] <- 'region'
+x$x[22:27] <- 'age'
+x$x[28:33] <- 'sex'
+x <- x %>% arrange(x, Region, Value)
+x <- rbind(x[x$x == 'total',],
+           x[x$x == 'region',],
+           x[x$x == 'age',],
+           x[x$x == 'sex',])
+x$x <- NULL
+x[1,1] <- 'Total'
+x$flag <- FALSE
+for (i in 2:nrow(x)){
+  if(x[i,1] == x[i-1, 1]){
+    x[i,'flag'] <- TRUE
+  }
+}
+x[,1][x$flag] <- ''
+x$flag <- NULL
+names(x)[1:2] <- c(' ', '  ')
+
+
+x$Dif <- x$WHO / x$IHME
+x$`% difference (WHO / IHME)` <- x$Dif
+x$Dif <- x$IHME / x$WHO
+x$`% difference (IHME / WHO)` <- x$Dif
+x$`% difference (WHO / IHME)` <-
+  (x$`% difference (WHO / IHME)` * 100) - 100
+x$`% difference (IHME / WHO)` <-
+  (x$`% difference (IHME / WHO)` * 100) - 100
+
+x$`% difference (IHME / WHO)` <- paste0(round(x$`% difference (IHME / WHO)`, digits = 2), '%')
+x$`% difference (WHO / IHME)` <- paste0(round(x$`% difference (WHO / IHME)`, digits = 2), '%')
+
+# Add a absolute difference column
+x$Dif <- abs(x$IHME - x$WHO)
+
+row.names(x) <- 1:nrow(x)
+x <- x[c(1:3, # total
+         c(22:27), # adults then children
+         c(28:33),# add by sex here
+         7:21), # by region
+       ]
+
+x$IHME <- round(x$IHME)
+x$WHO <- round(x$WHO)
+
+knitr::kable(x, row.names = FALSE)
+
+```
+
+
+## Analytical tables 
+
+
+Table with model output for estimating likelihood or magnitude of difference in estimates by HIV, age, sex, and region.
+
+This section is unfinished.
+
+```{r}
+fit <- lm(stand_dif ~ who_region, 
+          data = df %>%
+            filter(!is.na(stand_dif),
+                   is.finite(stand_dif)))
+make_pretty(tidy(fit),
+            nrows = nrow(tidy(fit)))
+```
+
+# Graphs
+
+
+
+
+## Descriptive graphs
+
+### Standardized difference
+
+Rankings of highest absolute and standardized differences for IHME and WHO.
+
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(w_minus_i)) %>% arrange(w_minus_i)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+
+# Clean up country names
+ggplot(data = temp,
+       aes(x = country,
+           y = w_minus_i)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Deaths') +
+  xlab('Country') +
+  ggtitle('Absolute differences: top and bottom 10') +
+  labs(subtitle = '> 0 = WHO\'s estimate higher than IHME\'s')
+```
+
+```{r, eval = FALSE}
+temp <- df
+temp <- temp %>% filter(!is.na(stand_dif)) %>% arrange(stand_dif)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = stand_dif)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Standardized difference') +
+  xlab('Country') +
+  ggtitle('Standardized difference: top and bottom 10') 
+```
+
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(adjusted_stand_dif)) %>% arrange(adjusted_stand_dif)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = adjusted_stand_dif)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Adjusted standardized difference') +
+  xlab('Country') +
+  ggtitle('Adjusted standardized difference: top and bottom 10') 
+```
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(original_stand_dif),
+                        is.finite(original_stand_dif)) %>% arrange(original_stand_dif)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = original_stand_dif)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Standardized difference') +
+  xlab('Country') +
+  labs(title = 'Standardized difference: top and bottom 10',
+       subtitle = 'Figure 1b') 
+```
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(stand_dif_sqrt_directional)) %>% arrange(stand_dif_sqrt_directional)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = stand_dif_sqrt_directional)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Square-root standardized difference') +
+  xlab('Country') +
+  ggtitle('Square root standardized difference: top and bottom 10') 
+```
+
+
+### Standardized difference for incidence
+
+```{r}
+# Standardized difference for incidence
+temp <- df
+temp <- temp %>% filter(!is.na(stand_dif_inc_adj)) %>% arrange(stand_dif_inc_adj) %>%
+  filter(is.finite(stand_dif_inc_adj))
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = stand_dif_inc_adj)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Adjusted standardized incidence difference') +
+  xlab('Country') +
+  ggtitle('Adjusted standardized incidence difference: top and bottom 10') 
+```
+
+
+```{r, eval = FALSE}
+temp <- df
+temp <- temp %>% filter(!is.na(stand_dif_inc)) %>% arrange(stand_dif_inc)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = stand_dif_inc)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Stan. dif. inc') +
+  xlab('Country') +
+  ggtitle('Standardized incidence difference: top and bottom 10') 
+```
+
+
+
+
+
+
+### AB metric (a-b) / (a+b)
+
+Rankings of highest absolute and standardized differences for IHME and WHO.
+
+```{r, eval = FALSE}
+temp <- df
+temp <- temp %>% filter(!is.na(ab)) %>% arrange(ab)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = ab)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('AB') +
+  xlab('Country') +
+  ggtitle('AB: top and bottom 10') 
+```
+
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(adjusted_ab)) %>% arrange(adjusted_ab)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = adjusted_ab)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Adjusted AB') +
+  xlab('Country') +
+  ggtitle('Adjusted AB: top and bottom 10') 
+```
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(ab_sqrt_directional)) %>% arrange(ab_sqrt_directional)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = ab_sqrt_directional)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Square-root AB') +
+  xlab('Country') +
+  ggtitle('Square root AB: top and bottom 10') 
+```
+
+
+
+# Maps
+
+
+```{r}
+# Expand
+world_tidy <- broom::tidy(world, region = 'iso_a3')
+# Join in data
+world@data <-
+  left_join(x = world@data,
+            y = df,
+            by = c('iso_a3' = 'iso3'))
+# Join to the tidy version too
+world_tidy <-
+  left_join(x = world_tidy,
+            y = df,
+            by = c('id' = 'iso3'))
+
+# Remove those which are unknown
+world_tidy <- world_tidy %>%
+  filter(id != '-99',
+         !is.na(country))
+```
+
+
+```{r}
+# Absolute differences by country
+# Plot
+
+g1 <- 
+  ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = absolute_difference)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       name = '',
+                       # guide = 'legend',
+                       breaks = rev(c(-200000, -100000,
+                                  0,
+                                  100000, 200000)),
+                       limits = c(-250000, 250000)) +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'Absolute difference by country') +
+  # ggthemes::theme_map() +
+  theme_bw() +
+  theme(legend.position = 'right')
+g1
+```
+
+```{r}
+g1 <- 
+  ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = absolute_difference)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       trans = 'log',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'Absolute difference by country',
+       subtitle = 'Log scale') +
+  theme_bw()
+g1
+```
+
+```{r}
+world_tidy$x <- world_tidy$w_both_all_tb_nd - 
+  world_tidy$i_both_all_tb_nd
+breaks<- rev(c(-200000, -100000,
+                                  0,
+                                  100000, 200000))
+limits <-  c(-250000, 250000)
+transy <- function(x, label = FALSE){
+  
+    negs <- x <0
+    paster <- ifelse(negs, '-', '')
+    out <- paste0(paster, round(sqrt(abs(x))))
+    if(!label){
+      out <- as.numeric(out)
+    }
+    return(out)
+}
+world_tidy$xx <- transy(world_tidy$x)
+
+
+g1 <- 
+  ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = xx)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       breaks = seq(-400, 400, by = 100),
+                       limits = c(-406, 406),
+                       labels = round(seq(-400, 400, by = 100))^2,
+                       # labels = 
+                       # trans = 'sqrt',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'Absolute difference by country',
+       subtitle = 'Square root scale') +
+  theme_bw() 
+g1
+```
+
+```{r}
+
+# Clean up
+# Make NA countries look cleaner with a shaded
+
+
+
+# Plot
+g1 <- 
+  ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = stand_dif)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'Standardized difference by country') +
+  theme_bw()
+g1
+
+```
+
+```{r}
+# Clean up
+# Make NA countries look cleaner with a shaded
+
+# Plot
+g1 <- 
+  ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = adjusted_stand_dif)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'Adjusted standardized difference by country') +
+  theme_bw()
+g1
+
+```
+
+
+
+```{r}
+
+# Plot
+ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = stand_dif_sqrt_directional)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  # scale_fill_continuous(low="thistle2", high="darkred", 
+  #                      guide="colorbar",na.value="white") +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'Square root of standardized difference by country') +
+  theme_bw()
+```
+
+
+```{r}
+
+# Plot
+ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = ab_sqrt_directional)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  # scale_fill_continuous(low="thistle2", high="darkred", 
+  #                      guide="colorbar",na.value="white") +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'Square root of AB by country') +
+  theme_bw()
+```
+
+
+The below scatterplot shows the correlation between WHO (x-axis) estimates and IHME (y-axis) estimates, with each point colored by its (WHO-defined) region. 
+
+```{r}
+cols <- colorRampPalette(brewer.pal(n = 9, name = 'Spectral'))(length(unique(df$who_region)))
+ggplot(data = df,
+       aes(x = w_both_all_tbtotal_nd,
+           y = i_both_all_tbtotal_nd,
+           color = who_region)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    scale_y_log10(limits = c(1, 150000)) +
+  scale_x_log10(limits = c(1, 150000)) +
+  labs(x = 'Number of deaths (WHO)',
+       y = 'Number of deaths (GBD)',
+       title = 'Correlation between WHO and GBD mortality esimates',
+       subtitle = 'Log scale, includes both TB and TB+HIV cases') +
+   geom_line(stat = 'smooth', 
+             method='lm', se = FALSE, alpha = 0.6,
+               formula = y ~ x) +
+  geom_abline(color = 'black',
+              lty = 2,
+              alpha = 0.6) +
+  scale_color_manual(name = 'Region',
+                     values = cols)
+
+```
+
+
+## Analytical for adjusted_stand_dif
+
+
+In the following four charts, Libya has been excluded as an outlier.
+
+
+
+### a) HIV prevalence among TB cases
+
+```{r}
+# x = df$newrel_hivpos
+# y = adjusted stand_dif
+
+# Fix log adjusted stand_dif so as to have a log-usable
+# negative number
+ggplot(data = df,
+       aes(x = adjusted_stand_dif,  #stand_dif_sqrt_directional,
+           y = p_hiv_of_tb)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+  labs(x = 'Adjusted standardized difference',
+       y = 'HIV prevalence among new TB cases',
+       title = 'Association of standardized difference with HIV') +
+  # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+```
+
+
+### b) Rifampicine resistance (MDR prevalence)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_stand_dif,
+           y = p_mdr_new)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+    labs(x = 'Adjusted standardized difference',
+       y = 'MDR prevalence among new cases',
+       title = 'Association of standardized difference with MDR prevalence') +
+    # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+
+### b.i) Rifampicine resistance (MDR prevalence using reported cases)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_stand_dif,
+           y = reported_mdr)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+    labs(x = 'Adjusted standardized difference',
+       y = 'MDR prevalence among new cases',
+       title = 'Association of standardized difference with MDR prevalence (reported)') +
+    # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+### c) CDR (case detection rate per WHO)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_stand_dif,
+           y = gb_c_cdr)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+   geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) +
+      labs(x = 'Adjusted standardized difference',
+       y = 'Case detection rate',
+       title = 'Association of standardized difference with case detection rate') #+
+    # xlim(-10,40)
+
+
+# Those countries with low case detection (oftentimes have prev survey),
+# WHO estimates more deaths than IHME
+```
+
+
+### c.i) CDR (case detection rate per IHME)
+
+```{r}
+
+ggplot(data = df,
+       aes(x = adjusted_stand_dif,
+           y = cdr_ihme)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+   geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) +
+      labs(x = 'Adjusted standardized difference',
+       y = 'Case detection rate',
+       title = 'Association of standardized difference with case detection rate') +
+    # xlim(-10,40) +
+  ylim(0, 100)
+
+
+# Those countries with low case detection (oftentimes have prev survey),
+# WHO estimates more deaths than IHME
+```
+
+### c.ii) Correlation between different case detections rates
+
+```{r}
+library(ggrepel)
+ggplot(data = df,
+       aes(x = gb_c_cdr,
+           y = cdr_ihme)) +
+  geom_point(alpha = 0.3) +
+  theme_bw() +
+   geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) +
+      labs(x = 'WHO case detection rate',
+       y = 'IHME case detection rate',
+       title = 'Association of two case detection rates') +
+  geom_text(aes(label = country),
+                   size = 3,
+            alpha = 0.6)
+
+```
+
+### d) CFR (case fatality rate)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_stand_dif,
+           y = case_fatality_rate_2015_adjusted)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+  labs(x = 'Adjusted standardized difference',
+       y = 'Case fatality rate',
+       title = 'Association of standardized difference with case fatality rate') +
+  # xlim(-10, 40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+
+### Prevalence survey's effect
+
+```{r}
+ggplot(data = df,
+       aes(x = who_region,
+           y = adjusted_stand_dif)) +
+  geom_boxplot() +
+  # ylim(-10, 20) +
+  geom_jitter(alpha = 0.3, size = 0.5) +
+  theme_bw() +
+  labs(x = 'Region',
+       y = 'Adjusted standardized difference',
+       title = 'Adjusted standardized difference by WHO region')
+  # geom_violin()
+```
+
+```{r}
+ggplot(data = df,
+       aes(x = who_region,
+           y = adjusted_stand_dif)) +
+  # geom_boxplot() +
+  # ylim(-10, 20) +
+  theme_bw() +
+  labs(x = 'Region',
+       y = 'Adjusted standardized difference',
+       title = 'Adjusted standardized difference by WHO region') +
+  geom_violin() +
+  geom_jitter(alpha = 0.3, size = 0.5) 
+```
+
+### Association of prevalence survey and standardized difference
+
+```{r}
+ggplot(data = df,
+       aes(x = factor(prevsurvey),
+           y = adjusted_stand_dif)) +
+  geom_boxplot() +
+  # ylim(-10, 20) +
+  geom_jitter(alpha = 0.3) +
+  theme_bw() +
+  labs(x = 'Prevalence survey',
+       y = 'Adjusted standardized difference',
+       title = 'Association of prevalence survey and adjusted standardized difference') 
+  # geom_violin() +
+df %>% group_by(prevsurvey) %>% summarise(median_adjusted_stand_dif = median(adjusted_stand_dif))
+```
+
+
+
+
+## Analytical for stand_dif_inc_adj
+
+
+
+### a) HIV prevalence among TB cases
+
+```{r}
+# x = df$newrel_hivpos
+# y = adjusted stand_dif
+
+# Fix log adjusted stand_dif so as to have a log-usable
+# negative number
+ggplot(data = df,
+       aes(x = stand_dif_inc_adj,  #stand_dif_sqrt_directional,
+           y = p_hiv_of_tb)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+  labs(x = 'Adj. stand. dif. in inc.',
+       y = 'HIV prevalence among new TB cases',
+       title = 'Association of Adj. stand. dif. in inc. with HIV') +
+  # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+```
+
+
+### b) Rifampicine resistance (MDR prevalence)
+
+```{r}
+ggplot(data = df,
+       aes(x = stand_dif_inc_adj,
+           y = p_mdr_new)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+    labs(x = 'Adj. stand. dif. in inc.',
+       y = 'MDR prevalence among new cases',
+       title = 'Association of Adj. stand. dif. in inc. with MDR prevalence') +
+    # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+
+### b.i) Rifampicine resistance (MDR prevalence using reported cases)
+
+```{r}
+ggplot(data = df,
+       aes(x = stand_dif_inc_adj,
+           y = reported_mdr)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+    labs(x = 'Adj. stand. dif. in inc.',
+       y = 'MDR prevalence among new cases',
+       title = 'Association of Adj. stand. dif. in inc. with MDR prevalence (reported)') +
+    # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+### c) CDR (case detection rate per WHO)
+
+```{r}
+ggplot(data = df,
+       aes(x = stand_dif_inc_adj,
+           y = gb_c_cdr)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+   geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) +
+      labs(x = 'Adj. stand. dif. in inc.',
+       y = 'Case detection rate',
+       title = 'Association of Adj. stand. dif. in inc.') +
+    # xlim(-10,40)
+
+
+# Those countries with low case detection (oftentimes have prev survey),
+# WHO estimates more deaths than IHME
+```
+
+
+### c.i) CDR (case detection rate per IHME)
+
+```{r}
+
+ggplot(data = df,
+       aes(x = stand_dif_inc_adj,
+           y = cdr_ihme)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+   geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) +
+      labs(x = 'Adj. stand. dif. in inc.',
+       y = 'Case detection rate',
+       title = 'Association of Adj. stand. dif. in inc. with case detection rate') #+
+    # xlim(-10,40) +
+  # ylim(0, 100)
+
+
+# Those countries with low case detection (oftentimes have prev survey),
+# WHO estimates more deaths than IHME
+```
+
+### d) CFR (case fatality rate)
+
+```{r}
+ggplot(data = df,
+       aes(x = stand_dif_inc_adj,
+           y = case_fatality_rate_2015_adjusted)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+  labs(x = 'Adj. stand. dif. in inc.',
+       y = 'Case fatality rate',
+       title = 'Association of Adj. stand. dif. in inc. with case fatality rate') +
+  # xlim(-10, 40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+
+### Prevalence survey's effect
+
+```{r}
+ggplot(data = df,
+       aes(x = who_region,
+           y = stand_dif_inc_adj)) +
+  geom_boxplot() +
+  # ylim(-10, 20) +
+  geom_jitter(alpha = 0.3, size = 0.5) +
+  theme_bw() +
+  labs(x = 'Region',
+       y = 'Adj. stand. dif. in inc.',
+       title = 'Adj. stand. dif. in inc. by WHO region')
+  # geom_violin()
+```
+
+```{r}
+ggplot(data = df,
+       aes(x = who_region,
+           y = stand_dif_inc_adj)) +
+  # geom_boxplot() +
+  # ylim(-10, 20) +
+  theme_bw() +
+  labs(x = 'Region',
+       y = 'Adj. stand. dif. in inc.',
+       title = 'Adj. stand. dif. in inc. by WHO region') +
+  geom_violin() +
+  geom_jitter(alpha = 0.3, size = 0.5) 
+```
+
+### Association of prevalence survey and standardized difference
+
+```{r}
+ggplot(data = df,
+       aes(x = factor(prevsurvey),
+           y = stand_dif_inc_adj)) +
+  geom_boxplot() +
+  # ylim(-10, 20) +
+  geom_jitter(alpha = 0.3) +
+  theme_bw() +
+  labs(x = 'Prevalence survey',
+       y = 'Adj. stand. dif. in inc.',
+       title = 'Association of prevalence survey and Adj. stand. dif. in inc.')
+  # geom_violin()
+```
+
+
+
+
+## Analytical for adjusted_ab
+
+
+### a) HIV prevalence among TB cases
+
+```{r}
+# x = df$newrel_hivpos
+# y = adjusted ab
+
+# Fix log adjusted ab so as to have a log-usable
+# negative number
+ggplot(data = df,
+       aes(x = adjusted_ab,  #ab_sqrt_directional,
+           y = p_hiv_of_tb)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+  labs(x = 'Adjusted AB',
+       y = 'HIV prevalence among new TB cases',
+       title = 'Association of AB with HIV') +
+  # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+```
+
+
+### b) Rifampicine resistance (MDR prevalence)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_ab,
+           y = p_mdr_new)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+    labs(x = 'Adjusted AB',
+       y = 'MDR prevalence among new cases',
+       title = 'Association of AB with MDR prevalence') +
+    # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+
+### b.i) Rifampicine resistance (MDR prevalence using reported cases)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_ab,
+           y = reported_mdr)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+    # scale_y_log10() +
+    labs(x = 'Adjusted AB',
+       y = 'MDR prevalence among new cases',
+       title = 'Association of adjusted AB with MDR prevalence (reported)') +
+    # xlim(-10,40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+### c) CDR (case detection rate per WHO)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_ab,
+           y = gb_c_cdr)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+   geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) +
+      labs(x = 'Adjusted AB',
+       y = 'Case detection rate',
+       title = 'Association of AB with case detection rate') #+
+    # xlim(-10,40)
+
+```
+
+
+### c.i) CDR (case detection rate per IHME)
+
+```{r}
+
+ggplot(data = df,
+       aes(x = adjusted_ab,
+           y = cdr_ihme)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+   geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) +
+      labs(x = 'Adjusted AB difference',
+       y = 'Case detection rate',
+       title = 'Association of adjusted AB with case detection rate') #+
+    # xlim(-10,40) +
+  # ylim(0, 100)
+
+```
+
+### d) CFR (case fatality rate)
+
+```{r}
+ggplot(data = df,
+       aes(x = adjusted_ab,
+           y = case_fatality_rate_2015_adjusted)) +
+  geom_point(alpha = 0.6) +
+  theme_bw() +
+  labs(x = 'Adjusted AB',
+       y = 'Case fatality rate',
+       title = 'Association of adjusted AB with case fatality rate') +
+  # xlim(-10, 40) +
+     geom_smooth(method='lm', se = FALSE, alpha = 0.2,
+               formula = y ~ x) 
+
+```
+
+
+### Prevalence survey's effect
+
+```{r}
+ggplot(data = df,
+       aes(x = who_region,
+           y = adjusted_ab)) +
+  geom_boxplot() +
+  # ylim(-10, 20) +
+  geom_jitter(alpha = 0.3, size = 0.5) +
+  theme_bw() +
+  labs(x = 'Region',
+       y = 'Adjusted AB',
+       title = 'Adjusted AB by WHO region')
+  # geom_violin()
+```
+
+```{r}
+ggplot(data = df,
+       aes(x = who_region,
+           y = adjusted_ab)) +
+  # geom_boxplot() +
+  # ylim(-10, 20) +
+  theme_bw() +
+  labs(x = 'Region',
+       y = 'Adjusted AB',
+       title = 'Adjusted AB') +
+  geom_violin() +
+  geom_jitter(alpha = 0.3, size = 0.5) 
+```
+
+### Association of prevalence survey and standardized difference
+
+```{r}
+ggplot(data = df,
+       aes(x = factor(prevsurvey),
+           y = adjusted_ab)) +
+  geom_boxplot() +
+  # ylim(-10, 20) +
+  geom_jitter(alpha = 0.3) +
+  theme_bw() +
+  labs(x = 'Prevalence survey',
+       y = 'Adjusted AB',
+       title = 'Association of prevalence survey and adjusted AB')
+  # geom_violin()
+```
+
+
+## Modeling
+
+Linear regression to estimate effect of prevalence survey on absolute difference in cases (WHO minus IHME), adjusting for region.
+
+```{r}
+# fit <- glm(prevsurvey ~ stand_dif, data = df %>% filter(is.finite(stand_dif)), family = binomial('logit'))
+# summary(fit)
+# exp(coef(fit))
+# exp(confint(fit))
+# 
+fit <- lm(w_minus_i ~ prevsurvey + who_region, data = df %>% filter(is.finite(w_minus_i)))
+make_pretty(tidy(summary(fit)), nrows = nrow(tidy(summary(fit))))
+```
+
+95% confidence intervals
+
+```{r}
+make_pretty(tidy(confint(fit)))
+```
+
+
+Linear regression to estimate effect of prevalence survey on adjusted standardized difference in cases, adjusting for region.
+
+```{r}
+
+fit <- lm(adjusted_stand_dif ~ prevsurvey + who_region, data = df %>% filter(is.finite(w_minus_i)))
+make_pretty(tidy(summary(fit)), nrows = nrow(tidy(summary(fit))))
+```
+
+95% confidence intervals
+
+```{r}
+make_pretty(tidy(confint(fit)))
+```
+
+
+# Interactive map
+
+## Relative difference (function of maximum estimate)
+
+(Unfinished)
+
+```{r}
+library(leaflet)
+world@data$indicator <- (world@data$adjusted_stand_dif)
+qpal <- colorNumeric("Spectral", 
+                     world@data$indicator, na.color = "#bdbdbd")
+
+
+popup <- paste0("<strong>Country: </strong>",
+                    world@data$country,
+                    "<br><strong>WHO: </strong>",
+                    round(world@data$w_both_all_tbtotal_nd, digits = 2),
+                    "<br><strong>IHME: </strong>",
+                    round(world@data$i_both_all_tbtotal_nd, digits = 2),
+                "<br><strong>Relative difference: </strong>",
+                round(world@data$relative_difference, digits = 3),
+                "<br><strong>WHO / IHME: </strong>",
+                round(world@data$w_over_i, digits = 3),
+                "<br><strong>IHME / WHO: </strong>",
+                round(world@data$i_over_w, digits = 3),
+                "<br><strong>Absolute difference: </strong>",
+                round(world@data$absolute_difference, digits = 3),
+                "<br><strong>Adjusted standardized difference: </strong>",
+                round(world@data$adjusted_stand_dif, digits = 3)
+                )
+
+l <- leaflet(data = world) %>%
+  addProviderTiles("Stamen.TonerBackground") %>% 
+  setView(lng = mean(coordinates(world)[,1]),
+          lat = mean(coordinates(world)[,2]),
+          zoom = 2) %>%
+  # clearShapes() %>% 
+  # clearControls() %>% 
+  addPolygons(data = world, 
+              fillColor = ~qpal(adjusted_stand_dif), fillOpacity = 0.7, 
+              color = "white", weight = 2, popup = popup) %>%
+  addLegend(pal = qpal, 
+            values = ~indicator, opacity = 0.9,
+            position = 'bottomright',
+            title = paste0('Adjusted standardized difference', "<br>"))
+l
+# library(htmlwidgets)
+# saveWidget(l, file='../joebrew.github.io/map.html')
+```
+
+## Map of world
+
+```{r}
+library(ggthemes)
+x <- map_data('world')
+x$moz <- x$region == 'Mozambique'
+ggplot(data = x,
+       aes(x = long,
+           y = lat,
+           group = group)) +
+  geom_polygon(aes(fill = moz)) +
+  scale_fill_manual(name = '',
+                     values = c('black', 'darkred'),
+                    guide = FALSE) +
+  theme_map() 
+
+
+```
+
+## Map of Mozambique
+
+```{r}
+x <- map_data('world')
+x <- x[x$region == 'Mozambique',]
+ggplot(data = x,
+       aes(x = long,
+           y = lat,
+           group = group)) +
+  geom_polygon(fill = 'darkred') +
+  theme_map() +
+  coord_map()
+```
+
+## Correlation coefficients
+
+Correlation of adjusted stand diff with a) HIV prevalence, CDR by both, CFR, MDR prevalence.
+
+```{r, echo = TRUE}
+cor(df$adjusted_stand_dif, df$newrel_hivpos, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$gb_c_cdr, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$cdr_ihme, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$case_fatality_rate_2014, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$case_fatality_rate_2012_to_2014, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$case_fatality_rate_2015, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$case_fatality_rate_2014_new, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$case_fatality_rate_2012_to_2014_new, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$case_fatality_rate_2015_new, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$case_fatality_rate_2015_adjusted, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$p_mdr_new, use = 'complete.obs')
+cor(df$adjusted_stand_dif, df$reported_mdr, use = 'complete.obs')
+```
+
+## Hypothesis testing on prevalence survey
+
+Does region affect likelihood of having a prevalence survey?
+
+```{r, echo = TRUE}
+xt <- table(df$prevsurvey, df$who_region)
+xt
+chisq.test(xt)
+```
+
+Does having a prev survey affect the adjusted stand diff?
+
+```{r, echo = TRUE}
+t.test(x = df$adjusted_stand_dif[df$prevsurvey == 0],
+       y = df$adjusted_stand_dif[df$prevsurvey == 1])
+```
+
+
+## Supplemental charts
+
+April 18, 2018
+
+
+Alberto Method: top and bottom 10 stand diff (children only)
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(original_stand_dif_child),
+                        is.finite(original_stand_dif_child)) %>% arrange(original_stand_dif_child)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = original_stand_dif_child)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Standardized difference') +
+  xlab('Country') +
+  labs(title = 'Standardized difference: top and bottom 10',
+       subtitle = 'Alberto method: 0-14 YEARS OLD ONLY') 
+```
+
+Martien Method: top and bottom 10 stand diff (children only)
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(stand_dif_child),
+                        is.finite(stand_dif_child)) %>% arrange(stand_dif_child)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = stand_dif_child)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Standardized difference') +
+  xlab('Country') +
+  labs(title = 'Standardized difference: top and bottom 10',
+       subtitle = 'Martien method: 0-14 YEARS OLD ONLY') 
+```
+
+Concordance between adult and child measures (Alberto method)
+
+```{r}
+ggplot(data = df,
+       aes(x = original_stand_dif,
+           y = original_stand_dif_child)) +
+  geom_point(color = 'darkorange',
+             alpha = 0.6,
+             aes(size = gb_e_pop_num / 1000000)) +
+  theme_bw() +
+  ylab('Child-specific standardized difference') +
+  xlab('All ages standardized difference') +
+  labs(title = 'Correlation between child and all ages standardized difference') +
+  scale_size_continuous(name = 'Population\n(millions)',
+                        breaks = c(1, 10, 100, 1000))
+```
+
+
+Concordance between adult and child measures (Martien method)
+
+```{r}
+ggplot(data = df,
+       aes(x = stand_dif,
+           y = stand_dif_child)) +
+  geom_point(color = 'darkorange',
+             alpha = 0.6,
+             aes(size = gb_e_pop_num / 1000000)) +
+  theme_bw() +
+  ylab('Child-specific standardized difference') +
+  xlab('All ages standardized difference') +
+  labs(title = 'Correlation between child and all ages standardized difference') +
+  scale_size_continuous(name = 'Population\n(millions)',
+                        breaks = c(1, 10, 100, 1000))
+```
+
+
+
+Alberto Method: top and bottom 10 stand diff (HIV only, all ages)
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(original_stand_dif_h),
+                        is.finite(original_stand_dif_h)) %>% arrange(original_stand_dif_h)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = original_stand_dif_h)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Standardized difference') +
+  xlab('Country') +
+  labs(title = 'Standardized difference: top and bottom 10',
+       subtitle = 'Alberto method: HIV all ages') 
+```
+
+Martien Method: top and bottom 10 stand diff (HIV, all ages)
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(stand_dif_h),
+                        is.finite(stand_dif_h)) %>% arrange(stand_dif_h)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+ggplot(data = temp,
+       aes(x = country,
+           y = stand_dif_h)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Standardized difference') +
+  xlab('Country') +
+  labs(title = 'Standardized difference: top and bottom 10',
+       subtitle = 'Martien method: HIV, all ages') 
+```
+
+
+
+## Effect of prevalence survey
+
+Is CDR associated with stand diff in the linear regression among those countries without prevalence survey?
+
+```{r, echo = TRUE}
+x <- df
+x$gb_c_cdr[!is.finite(x$gb_c_cdr)] <- NA
+x$original_stand_dif[!is.finite(x$original_stand_dif)] <- NA
+fit <- lm(gb_c_cdr ~ original_stand_dif, data = x[x$prevsurvey == 0,])
+summary(fit)
+```
+
+Yes. Among countries without a prevalence survey, a 1 unit increase in the standardized difference is associated with a 0.355 unit decrease in the CDR. This is significant (p < 0.01).
+
+# More visualizations
+
+Afternoon of Wednesday, April 19. All charts are WHO minus IHME
+
+```{r}
+# Define function for getting ab and std diff
+make_diff <- function(a, b, data, absolute = FALSE, standardize = TRUE){
+  remove <- 
+    # No NAs allowed
+    (is.na(a) |
+    is.na(b)) |
+    # # If a is 0, b has to be greater than 5
+    # (a == 0 & b <= 5) |
+    # # or, if b is 0, a has to be greater than 5
+    # (b == 0 & a <= 5)
+    (a <= 5 & b <= 5) 
+    
+  keep <- !remove
+    
+                
+  data <- data[keep,]
+  a <- a[keep]
+  b <- b[keep]
+  absolute_diff <- a-b
+  jj <- (a-b)/((a+b)/2)
+  standardized_diff <- (jj) / abs(max(abs(c(max(jj, na.rm = TRUE),
+                         min(jj, na.rm = TRUE))))) * 100
+  if(absolute){
+    out <- absolute_diff
+  } else {
+    out <- (a-b)/((a+b)/2)
+    if(standardize){
+      
+      out <- standardized_diff
+    }
+  }
+  data$val <- out
+  data$absolute_diff <- absolute_diff
+  data$standardized_diff <- standardized_diff
+  data$country <- ifelse(grepl('acedonia', data$country), 'Macedonia', data$country)
+ return(data) 
+}
+plotter <- function(x){
+  x <- x %>% arrange(val)
+  x <- x[c(1:10, (nrow(x)-9):nrow(x)),]
+  x$country <- factor(x$country, levels = x$country)
+  ggplot(data = x,
+         aes(x = country,
+             y = val)) +
+    geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = 'Country',
+         y = '')
+}
+make_table <- function(x){
+  out <- x %>%
+    arrange(val)
+  out <- out[c(1:10, (nrow(x)-9):nrow(x)),]
+  out <- bind_rows(out[20:11,],
+                   out[1:10,])
+  row.names(out) <- NULL
+  out <- out %>% dplyr::select(country, val)
+  names(out) <- c('Country', 'Value')
+  knitr::kable(out, format = 'html') %>%
+    kable_styling() %>%
+    kableExtra::row_spec(row = 11:20, 
+                         color = '#0000A0',
+                         background = '#ff9393')
+}
+source('prettify.R')
+make_pretty <- function(x){
+  out <- x %>% dplyr::select(country, absolute_diff, standardized_diff)
+  prettify(out, download_options = TRUE)
+}
+
+make_stand_diff <- function(a,b){
+  jj <- (a-b)/((a+b)/2)
+  standardized_diff <- (jj) / abs(max(abs(c(max(jj, na.rm = TRUE),
+                         min(jj, na.rm = TRUE))))) * 100
+  return(standardized_diff)
+}
+```
+
+### a) absch: w_both_014_tbtotal_nd - i_both_014_tbtotal_nd
+
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = x$w_both_014_tbtotal_nd,
+               b = x$i_both_014_tbtotal_nd,
+               absolute = TRUE)
+plotter(x) +
+  labs(y = 'Number of deaths')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+#### standardized
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+  a = x$w_both_014_tbtotal_nd,
+               b = x$i_both_014_tbtotal_nd,
+               absolute = FALSE)
+plotter(x) +
+  labs(y = 'Standardized difference')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+**Downloadable table with full data**
+
+```{r}
+make_pretty(x)
+```
+
+
+
+### b) absad: (w_f_15plus_htb_nd + w_m_15plus_htb_nd + w_f_15plus_tb_nd + w_m_15plus_tb_nd) - ( i_both_15plus_tb_nd + i_both_15plus_htb_nd)
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = (x$w_f_15plus_htb_nd + 
+                          x$w_m_15plus_htb_nd + 
+                          x$w_f_15plus_tb_nd + 
+                          x$w_m_15plus_tb_nd),
+               b = (x$i_both_15plus_tb_nd + x$i_both_15plus_htb_nd),
+               absolute = TRUE)
+plotter(x) +
+  labs(y = 'Number of deaths')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+#### standardized
+
+```{r}
+x <- df 
+ x <- make_diff(data = x,
+                        a = (x$w_f_15plus_htb_nd + 
+                          x$w_m_15plus_htb_nd + 
+                          x$w_f_15plus_tb_nd + 
+                          x$w_m_15plus_tb_nd),
+               b = (x$i_both_15plus_tb_nd + x$i_both_15plus_htb_nd),
+               absolute = FALSE)
+plotter(x) +
+  labs(y = 'Standardized difference')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+**Downloadable table with full data**
+
+```{r}
+make_pretty(x)
+```
+
+
+
+### c) abshiv: w_both_all_htb_nd - i_both_all_htb_nd
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = x$w_both_all_htb_nd,
+               b = x$i_both_all_htb_nd,
+               absolute = TRUE)
+plotter(x) +
+  labs(y = 'Number of deaths')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+#### standardized
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = x$w_both_all_htb_nd,
+               b = x$i_both_all_htb_nd,
+               absolute = FALSE)
+plotter(x) +
+  labs(y = 'Standardized difference')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+**Downloadable table with full data**
+
+```{r}
+make_pretty(x)
+```
+
+
+### d) abstb: w_both_all_tb_nd - i_both_all_tb_nd
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = x$w_both_all_tb_nd,
+               b = x$i_both_all_tb_nd,
+               absolute = TRUE)
+plotter(x) +
+  labs(y = 'Number of deaths')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+#### standardized
+
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = x$w_both_all_tb_nd,
+               b = x$i_both_all_tb_nd,
+               absolute = FALSE)
+plotter(x) +
+  labs(y = 'Standardized difference')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+**Downloadable table with full data**
+
+```{r}
+make_pretty(x)
+```
+
+### e) absall: w_both_all_tbtotal_nd - i_both_all_tbtotal_nd
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = x$w_both_all_tbtotal_nd,
+               b = x$i_both_all_tbtotal_nd,
+               absolute = TRUE)
+plotter(x) +
+  labs(y = 'Number of deaths')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+#### standardized
+
+```{r}
+x <- df 
+x <- make_diff(data = x,
+               a = x$w_both_all_tbtotal_nd,
+               b = x$i_both_all_tbtotal_nd,
+               absolute = FALSE)
+plotter(x) +
+  labs(y = 'Standardized difference')
+```
+
+```{r, results = 'asis'}
+make_table(x)
+```
+
+
+**Downloadable table with full data**
+
+```{r}
+make_pretty(x)
+```
+
+
+```{r}
+# Write csv with details
+x <- df %>%
+  mutate(absad_a = (w_f_15plus_htb_nd + w_m_15plus_htb_nd + w_f_15plus_tb_nd + w_m_15plus_tb_nd),
+         absad_b = (i_both_15plus_tb_nd + i_both_15plus_htb_nd)) %>%
+  dplyr::select(
+    w_both_014_tbtotal_nd,
+    i_both_014_tbtotal_nd,
+    absad_a,
+    absad_b,
+    w_both_all_htb_nd,
+    i_both_all_htb_nd,
+    w_both_all_tb_nd,
+    i_both_all_tb_nd,
+    w_both_all_tbtotal_nd, 
+    i_both_all_tbtotal_nd) 
+x$any0 <- apply(x, 1, function(z){any(is.na(z)|z == 0)})
+x <- cbind(data.frame(country = df$country),
+           x)  
+write_csv(x, 'countries.csv')
+# cat(paste0(sort(unique(x$country[x$any0])), collapse = '\n'))
+y <- x %>%
+  dplyr::select(-any0) %>%
+  summarise_all(.funs = function(z){paste0(sort(unique(df$country[(which(is.na(z) | z == 0))])), collapse = ';')})
+write_csv(y, 'missings.csv')
+
+```
+
+# Big table for appendix
+
+```{r}
+x <- df %>%
+  # A
+  mutate(`absolute difference for all tb all ages` = w_both_all_tbtotal_nd - i_both_all_tbtotal_nd) %>%
+  # B
+  mutate(`standardized difference for all tb all ages` = make_stand_diff( w_both_all_tbtotal_nd, i_both_all_tbtotal_nd)) %>%
+  # C
+  mutate(`absolute difference for children` = w_both_014_tbtotal_nd - i_both_014_tbtotal_nd) %>%
+  # D
+  mutate(`standardized difference for children` = make_stand_diff(w_both_014_tbtotal_nd, i_both_014_tbtotal_nd)) %>%
+  # E
+  mutate(`absolute difference for adults` = (w_f_15plus_htb_nd + w_m_15plus_htb_nd + w_f_15plus_tb_nd + w_m_15plus_tb_nd) - ( i_both_15plus_tb_nd + i_both_15plus_htb_nd)) %>%
+  # F 
+  mutate(`standardized difference for adults` = make_stand_diff(
+    a = (w_f_15plus_htb_nd + w_m_15plus_htb_nd + w_f_15plus_tb_nd + w_m_15plus_tb_nd),
+    b =  ( i_both_15plus_tb_nd + i_both_15plus_htb_nd)
+  )) %>%
+  # G
+  mutate(`absolute difference for hiv tb` = w_both_all_htb_nd - i_both_all_htb_nd ) %>%
+  # H
+  mutate(`standardized difference for hiv tb` = make_stand_diff(w_both_all_htb_nd , i_both_all_htb_nd )) %>%
+  # I
+  mutate(`absolute difference for only tb` = w_both_all_tb_nd - i_both_all_tb_nd) %>%
+  # J
+  mutate(`standardized difference for only tb` = make_stand_diff(w_both_all_tb_nd, i_both_all_tb_nd))
+x <- x[,grepl('standardized difference|absolute difference|country', names(x))]
+x <- x %>% arrange(country) %>%
+  dplyr::select(-country_number)
+prettify(x, nrows = nrow(x), download_options = TRUE)
+```
+
+## Missing data in CDR, CFR, HIV 
+
+```{r, echo = TRUE}
+# CDR
+df$country[is.na(df$cdr_ihme)]
+
+# CFR
+df$country[is.na(df$case_fatality_rate_2015)]
+df$country[is.na(df$case_fatality_rate_2014)]
+
+# HIV
+df$country[is.na(df$newrel_hivpos)]
+
+```
+
+## More correlations
+
+Using stand_dif ( (a-b)/(a+b)/2 )
+
+```{r}
+stand_dif_compare <- function(y = df$gb_c_cdr,
+                              yl = NULL,
+                              x = NULL){
+  if(is.null(yl)){
+    stop('Provide a label')
+  }
+
+  if(is.null(x)){
+    x <- df$stand_dif
+  }
+  not_na <- !is.na(x) & !is.na(y) & is.finite(x) & is.finite(y)
+  ct <- cor.test(x[not_na],y[not_na], method = "pearson", conf.level = 0.95)
+
+  data <- data.frame(x,y, z = df$gb_e_pop_num)
+  cc <- paste0('Correlation coefficient: ', round(cor(x[not_na],y[not_na], use = 'complete.obs'), digits = 3), ', 95% CI: ', 
+               round(ct$conf.int[1], digits = 3),
+               ' to ',
+               round(ct$conf.int[2], digits = 3))
+  ggplot(data = data,
+         aes(x = x,
+             y = y#,
+             # size = z / 1000000
+             )) +
+    geom_point(color = 'darkorange',alpha = 0.6) +
+    geom_smooth(method = 'lm', se = FALSE) +
+    theme_bw() +
+    labs(x = 'Standardized difference',
+         y = yl,
+         subtitle = cc,
+         title = paste0('Association of standardized difference and ', yl)) #+
+    # scale_size_continuous(name = 'Population\n(millions)')
+}
+```
+
+### Standardized difference with CDR WHO
+
+```{r}
+stand_dif_compare(y = df$gb_c_cdr, yl = 'CDR WHO')
+```
+
+### Standardized difference with CDR GBD
+
+```{r}
+stand_dif_compare(y = df$cdr_ihme, yl = 'CDR GBD')
+```
+
+### Standardized difference with CFR
+
+(using variable `case_fatality_rate_2015_adjusted`)
+
+```{r}
+stand_dif_compare(y = df$case_fatality_rate_2015_adjusted, yl = 'CFR')
+```
+
+### Comparison of different case fatality rate measures
+
+Alberto asked: can you look at the code and compare `case_fatality_rate_2015_adjusted` and `case_fatality_rate_2015`
+
+```{r}
+cc <- paste0('Correlation coefficient: ', round(cor(df$case_fatality_rate_2015_adjusted,
+          df$case_fatality_rate_2015,
+          use = 'complete.obs'), digits = 3))
+ggplot(data = df,
+       aes(x = case_fatality_rate_2015_adjusted,
+           y = case_fatality_rate_2015,
+           size = gb_e_pop_num / 1000000)) +
+  geom_point(color = 'darkorange',alpha = 0.6) +
+    theme_bw() +
+    labs(x = 'case_fatality_rate_2015_adjusted',
+         y = 'case_fatality_rate_2015',
+         subtitle = cc,
+         title = 'Variable comparison') +
+    scale_size_continuous(name = 'Population\n(millions)')
+```
+
+They are identical _except_ that the adjusted rate has 17 missings, whereas the non adjusted rate has 26 missings. 
+
+### Standardized difference with CFR
+
+(using variable `gb_cfr`)
+
+```{r}
+stand_dif_compare(y = df$gb_cfr, yl = 'CFR')
+```
+
+### Standardized difference with Reported HIV prevalence
+
+```{r}
+stand_dif_compare(y = df$p_hiv_of_tb, yl = 'Reported HIV prevalence')
+```
+
+### Standardized difference with MDR prevalence 
+
+(using `reported_mdr`)
+
+```{r}
+stand_dif_compare(y = df$reported_mdr, yl = 'MDR prevalence ')
+```
+
+### Standardized difference with MDR prevalence 
+
+(using `p_mdr_new`)
+
+```{r}
+stand_dif_compare(y = df$p_mdr_new, yl = 'MDR prevalence ')
+```
+
+
+
+## Request A: Correlations with  `original_stand_diff`
+
+
+### CDR WHO 
+
+```{r, echo = TRUE}
+stand_dif_compare(x = df$original_stand_dif, 
+                  y = df$gb_c_cdr,
+                  yl = 'CDR WHO')
+```
+
+### CDR GBD 
+
+```{r, echo = TRUE}
+
+stand_dif_compare(x = df$original_stand_dif, 
+                  y = df$cdr_ihme,
+                  yl = 'CDR GBD')
+```
+
+### HIV prevalence 
+
+```{r, echo = TRUE}
+stand_dif_compare(x = df$original_stand_dif, 
+                  y = df$p_hiv_of,
+                  yl = 'HIV prevalence')
+```
+
+### MDR prevalence 
+
+```{r, echo = TRUE}
+stand_dif_compare(x = df$original_stand_dif, 
+                  y = df$p_mdr_new,
+                  yl = 'MDR prevalence')
+```
+
+## Request B: Box plot of association of prevalence survey with stand diff (not original_stand_dif)
+
+```{r}
+ggplot(data = df %>%
+         mutate(prevsurvey = ifelse(prevsurvey == 0, 'No prevalence survey', 'Prevalence survey')),
+       aes(x= factor(prevsurvey),
+           y = stand_dif,
+           group = prevsurvey)) +
+  geom_boxplot() +
+  labs(x = 'Prevalence survey',
+       y = 'Standardized difference') +
+  theme_bw()
+```
+
+Difference using t-test (for p-value)
+
+```{r}
+t.test(df$stand_dif[df$prevsurvey == 0],
+       df$stand_dif[df$prevsurvey == 1])
+
+```
+
+## prev_survey and original_stand_dif
+
+```{r}
+ggplot(data = df %>%
+         mutate(prevsurvey = ifelse(prevsurvey == 0, 'No prevalence survey', 'Prevalence survey')),
+       aes(x= factor(prevsurvey),
+           y = original_stand_dif,
+           group = prevsurvey)) +
+  geom_boxplot() +
+  labs(x = 'Prevalence survey',
+       y = 'Standardized difference') +
+  theme_bw()
+```
+
+Difference using t-test (for p-value) 
+
+```{r}
+x <- df %>%
+  filter(!is.na(prevsurvey) &
+           !is.infinite(prevsurvey) &
+           !is.na(original_stand_dif) &
+           !is.infinite(original_stand_dif))
+t.test(x$original_stand_dif[x$prevsurvey == 0],
+       x$original_stand_dif[x$prevsurvey == 1])
+
+```
+
+
+## Figure 1
+
+```{r}
+temp <- df
+temp <- temp %>% filter(!is.na(w_minus_i)) %>% arrange(w_minus_i)
+temp <- temp[c(1:10,
+               (nrow(temp) - 9):nrow(temp)),]
+temp$country <- factor(temp$country,
+                       levels = temp$country)
+
+# Clean up country names
+g1 <- ggplot(data = temp,
+       aes(x = country,
+           y = w_minus_i)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Deaths') +
+  xlab('Country') +
+  ggtitle('A')
+
+tempy <- df
+tempy <- tempy %>% filter(!is.na(original_stand_dif),
+                        is.finite(original_stand_dif)) %>% arrange(original_stand_dif)
+tempy <- tempy[c(1:10,
+               (nrow(tempy) - 9):nrow(tempy)),]
+tempy$country <- factor(tempy$country,
+                       levels = tempy$country)
+g2 <- ggplot(data = tempy,
+       aes(x = country,
+           y = original_stand_dif)) +
+  geom_bar(stat = 'identity',
+           fill = 'darkorange',
+           alpha = 0.6) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ylab('Ratio (absolute difference / number of reported deaths)') +
+  xlab('Country') +
+  labs(title = 'B') 
+png(filename = 'figure1.png', res = 600, width = 4000, height = 6000)
+mp <- Rmisc::multiplot
+mp(g1, g2)
+dev.off()
+```
+
+## Figure 2
+
+```{r}
+
+g1 <- 
+  ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = xx)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       breaks = seq(-400, 400, by = 100),
+                       limits = c(-406, 406),
+                       labels = round(seq(-400, 400, by = 100))^2,
+                       # labels = 
+                       # trans = 'sqrt',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'A') +
+  theme_bw() 
+
+
+# Plot
+g2 <- 
+  ggplot(data = world_tidy,
+       aes(x = long,
+           y = lat,
+           group = group,
+           fill = adjusted_stand_dif)) +
+  coord_map() +
+  geom_polygon(color = 'black',  size = 0.1) +
+  # theme_cism() +
+  # scale_fill_gradient(low = 'white',
+  #                     high = 'black',
+  #                     name = '') +
+  scale_fill_gradient2(low = 'darkgreen',
+                       mid = 'white',
+                         high = 'darkorange',
+                       na.value = 'white',
+                       name = '') +
+  labs(x = 'Longitude',
+       y = 'Latitude',
+       title = 'B') +
+  theme_bw()
+
+png(filename = 'figure2.png', res = 600, width = 5000, height = 6000)
+mp <- Rmisc::multiplot
+mp(g1, g2, cols = 1)
+dev.off()
+```
+
+## Figure 3
+
+```{r}
+g <- ggplot(data = df %>% mutate(`Region` = who_region),
+       aes(x = w_both_all_tbtotal_nd,
+           y = i_both_all_tbtotal_nd,
+           pch = `Region`)) +
+  geom_point(alpha = 0.6,
+             size = 0.8) +
+  theme_bw() +
+  scale_y_log10() +
+  scale_x_log10() +
+  #   scale_y_log10(limits = c(1, 150000)) +
+  # scale_x_log10(limits = c(1, 150000)) +
+  labs(x = 'Number of deaths (WHO)',
+       y = 'Number of deaths (GBD)',
+       # title = 'Correlation between WHO and GBD mortality esimates',
+       subtitle = 'Log scale, includes both TB and TB+HIV cases') +
+   geom_line(stat = 'smooth', 
+             method='lm', se = FALSE, alpha = 0.6,
+               formula = y ~ x,
+             aes(lty = Region)) +
+  geom_abline(color = 'black',
+              lty = 2,
+              alpha = 0.6) 
+
+png(filename = 'figure3.png', res = 600, width = 4000, height = 2400)
+g
+dev.off()
+
+g2 <- ggplot(data = df %>% mutate(`Region` = who_region),
+       aes(x = w_both_all_tbtotal_nd,
+           y = i_both_all_tbtotal_nd)) +
+  geom_point(alpha = 0.6,
+             size = 0.3) +
+  theme_bw() +
+  scale_y_log10() +
+  scale_x_log10() +
+  #   scale_y_log10(limits = c(1, 150000)) +
+  # scale_x_log10(limits = c(1, 150000)) +
+  labs(x = 'Number of deaths (WHO)',
+       y = 'Number of deaths (GBD)') +
+   geom_line(stat = 'smooth', 
+             method='lm', se = FALSE, alpha = 0.9,
+               formula = y ~ x,
+             lty = 1) +
+  geom_abline(color = 'black',
+              lty = 3,
+              alpha = 0.5) +
+  facet_wrap(~Region) +
+  theme(legend.position = 'none')
+
+png(filename = 'figure3alternative.png', res = 600, width = 5000, height = 3200)
+g2
+dev.off()
+
+
+```
+
+## Figure 4
+
+```{r}
+x <- df 
+ x <- make_diff(data = x,
+                        a = (x$w_f_15plus_htb_nd + 
+                          x$w_m_15plus_htb_nd + 
+                          x$w_f_15plus_tb_nd + 
+                          x$w_m_15plus_tb_nd),
+               b = (x$i_both_15plus_tb_nd + x$i_both_15plus_htb_nd),
+               absolute = FALSE)
+g1 <- plotter(x) +
+  labs(y = 'Standardized difference',
+       title = 'A')
+
+y <- df 
+y <- make_diff(data = y,
+  a = y$w_both_014_tbtotal_nd,
+               b = y$i_both_014_tbtotal_nd,
+               absolute = FALSE)
+g2 <- plotter(y) +
+  labs(y = 'Standardized difference',
+       title = 'B')
+
+a <- df 
+a <- make_diff(data = a,
+               a = a$w_both_all_htb_nd,
+               b = a$i_both_all_htb_nd,
+               absolute = FALSE)
+g3 <- plotter(a) +
+  labs(y = 'Standardized difference',
+       title = 'C')
+
+png(filename = 'figure4.png', res = 600, width = 2800, height = 6000)
+Rmisc::multiplot(g1, g2, g3, cols = 1)
+dev.off()
+```
+
+## Figure 5
+
+```{r}
+a <- stand_dif_compare(y = df$p_hiv_of_tb, yl = 'Reported HIV prevalence') +
+  labs(title = 'A')
+d <- stand_dif_compare(y = df$p_mdr_new, yl = 'MDR prevalence ')+
+  labs(title = 'B')
+b <- stand_dif_compare(y = df$gb_c_cdr, yl = 'CDR WHO %') +
+  labs(title = 'C')
+e <- stand_dif_compare(y = df$cdr_ihme, yl = 'CDR GBD %') +
+  labs(title = 'D')
+
+png(filename = 'figure5.png', res = 600, width = 5000, height = 3500)
+Rmisc::multiplot(a,b,d,e, cols = 2)
+dev.off()
+```
+
+## Suplementary figure 1
+
+```{r}
+a <- stand_dif_compare(x = df$original_stand_dif, 
+                  y = df$p_hiv_of,
+                  yl = 'HIV prevalence') +
+  labs(title = 'A')
+
+d <- stand_dif_compare(x = df$original_stand_dif, 
+                  y = df$p_mdr_new,
+                  yl = 'MDR prevalence') +
+  labs(title = 'B')
+b <- stand_dif_compare(x = df$original_stand_dif, 
+                                                            y = df$gb_c_cdr,
+                                                            yl = 'CDR WHO %') +
+  labs(title = 'C')
+e <- stand_dif_compare(x = df$original_stand_dif, 
+                  y = df$cdr_ihme,
+                  yl = 'CDR GBD %') +
+  labs(title = 'D')
+
+png(filename = 'figure_supplementary.png', res = 600,width = 5000, height = 3500)
+Rmisc::multiplot(a,b,d,e, cols = 2)
+dev.off()
+```

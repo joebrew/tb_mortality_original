@@ -1,0 +1,29 @@
+---
+title: "TB Mortality data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(lendable)
+knitr::opts_chunk$set(comment = NA, 
+               echo = FALSE, 
+               warning = FALSE, 
+               message = FALSE, 
+               error = TRUE, # Render report, even with errors
+               cache = F)
+```
+
+```{r}
+x = readr::read_csv('data/combined_data.csv')
+```
+
+```{r}
+prettify(x, download_options = TRUE,
+         remove_underscores_columns = FALSE,
+         cap_characters = FALSE,
+         comma_numbers = FALSE,
+         round_digits = 5,
+         remove_row_names = TRUE,
+         remove_line_breaks = TRUE,
+         nrows = nrow(x))
+```

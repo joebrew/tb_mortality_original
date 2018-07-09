@@ -1,0 +1,252 @@
+iso3,COUNTRY NAME,country_number
+ABW,Aruba,
+AFG,Afghanistan,160
+AGO,Angola,168
+AIA,Anguilla,
+ALA,Åland Islands,
+ALB,Albania,43
+AND,Andorra,74
+ANT,Netherlands Antilles,
+ARE,United Arab Emirates,156
+ARG,Argentina,97
+ARM,Armenia,33
+ASM,American Samoa,298
+ATA,Antarctica,
+ATF,French Southern Territories,
+ATG,Antigua and Barbuda,105
+AUS,Australia,71
+AUT,Austria,75
+AZE,Azerbaijan,34
+BDI,Burundi,175
+BEL,Belgium,76
+BEN,Benin,200
+BFA,Burkina Faso,201
+BGD,Bangladesh,161
+BGR,Bulgaria,45
+BHR,Bahrain,140
+BHS,Bahamas,106
+BIH,Bosnia and Herzegovina,44
+BLM,Saint Barthélemy,
+BLR,Belarus,57
+BLZ,Belize,108
+BMU,Bermuda,305
+BOL,"Bolivia, Plurinational State of",121
+BRA,Brazil,135
+BRB,Barbados,107
+BRN,Brunei Darussalam,66
+BTN,Bhutan,162
+BVT,Bouvet Island,
+BWA,Botswana,193
+CAF,Central African Republic,169
+CAN,Canada,101
+CCK,Cocos (Keeling) Islands,
+CHE,Switzerland,94
+CHL,Chile,98
+CHN,China,6
+CIV,Côte d'Ivoire,205
+CMR,Cameroon,202
+COD,"Congo, the Democratic Republic of the",171
+COG,Congo,170
+COK,Cook Islands,
+COL,Colombia,125
+COM,Comoros,176
+CPV,Cape Verde,203
+CRI,Costa Rica,126
+CUB,Cuba,109
+CXR,Christmas Island,
+CYM,Cayman Islands,
+CYP,Cyprus,77
+CZE,Czech Republic,47
+DEU,Germany,81
+DJI,Djibouti,177
+DMA,Dominica,110
+DNK,Denmark,78
+DOM,Dominican Republic,111
+DZA,Algeria,139
+ECU,Ecuador,122
+EGY,Egypt,141
+ERI,Eritrea,178
+ESH,Western Sahara,
+ESP,Spain,92
+EST,Estonia,58
+ETH,Ethiopia,179
+FIN,Finland,79
+FJI,Fiji,22
+FLK,Falkland Islands (Malvinas),
+FRA,France,80
+FRO,Faroe Islands,
+FSM,"Micronesia, Federated States of",78
+GAB,Gabon,173
+GBR,United Kingdom,95
+GEO,Georgia,35
+GGY,Guernsey,
+GHA,Ghana,207
+GIB,Gibraltar,
+GIN,Guinea,208
+GLP,Guadeloupe,
+GMB,Gambia,206
+GNB,Guinea-Bissau,209
+GNQ,Equatorial Guinea,172
+GRC,Greece,82
+GRD,Grenada,112
+GRL,Greenland,349
+GTM,Guatemala,128
+GUF,French Guiana,
+GUM,Guam,351
+GUY,Guyana,113
+HKG,Hong Kong,
+HMD,Heard Island and McDonald Islands,
+HND,Honduras,129
+HRV,Croatia,46
+HTI,Haiti,114
+HUN,Hungary,48
+IDN,Indonesia,11
+IMN,Isle of Man,
+IND,India,163
+IOT,British Indian Ocean Territory,
+IRL,Ireland,84
+IRN,"Iran, Islamic Republic of",142
+IRQ,Iraq,143
+ISL,Iceland,83
+ISR,Israel,85
+ITA,Italy,86
+JAM,Jamaica,115
+JEY,Jersey,
+JOR,Jordan,144
+JPN,Japan,67
+KAZ,Kazakhstan,36
+KEN,Kenya,180
+KGZ,Kyrgyzstan,37
+KHM,Cambodia,10
+KIR,Kiribati,23
+KNA,Saint Kitts and Nevis,
+KOR,"Korea, Republic of",68
+KWT,Kuwait,145
+LAO,Lao People's Democratic Republic,12
+LBN,Lebanon,146
+LBR,Liberia,210
+LBY,Libyan Arab Jamahiriya,147
+LCA,Saint Lucia,116
+LIE,Liechtenstein,
+LKA,Sri Lanka,17
+LSO,Lesotho,194
+LTU,Lithuania,60
+LUX,Luxembourg,87
+LVA,Latvia,59
+MAC,Macao,
+MAF,Saint Martin (French part),
+MAR,Morocco,148
+MCO,Monaco,
+MDA,"Moldova, Republic of",61
+MDG,Madagascar,181
+MDV,Maldives,14
+MEX,Mexico,130
+MHL,Marshall Islands,24
+MKD,"Macedonia, the former Yugoslav Republic of",49
+MLI,Mali,211
+MLT,Malta,88
+MMR,Myanmar,15
+MNE,Montenegro,50
+MNG,Mongolia,38
+MNP,Northern Mariana Islands,376
+MOZ,Mozambique,184
+MRT,Mauritania,212
+MSR,Montserrat,
+MTQ,Martinique,
+MUS,Mauritius,183
+MWI,Malawi,182
+MYS,Malaysia,13
+MYT,Mayotte,
+NAM,Namibia,195
+NCL,New Caledonia,
+NER,Niger,213
+NFK,Norfolk Island,
+NGA,Nigeria,214
+NIC,Nicaragua,131
+NIU,Niue,
+NLD,Netherlands,89
+NOR,Norway,90
+NPL,Nepal,164
+NRU,Nauru,
+NZL,New Zealand,72
+OMN,Oman,150
+PAK,Pakistan,165
+PAN,Panama,132
+PCN,Pitcairn,
+PER,Peru,123
+PHL,Philippines,16
+PLW,Palau,
+PNG,Papua New Guinea,26
+POL,Poland,51
+PRI,Puerto Rico,385
+PRK,"Korea, Democratic People's Republic of",7
+PRT,Portugal,91
+PRY,Paraguay,136
+PSE,"Palestinian Territory, Occupied",149
+PYF,French Polynesia,
+QAT,Qatar,151
+REU,Réunion,
+ROU,Romania,52
+RUS,Russian Federation,62
+RWA,Rwanda,185
+SAU,Saudi Arabia,152
+SDN,Sudan,522
+SEN,Senegal,216
+SGP,Singapore,69
+SGS,South Georgia and the South Sandwich Islands,
+SHN,"Saint Helena, Ascension and Tristan da Cunha",
+SJM,Svalbard and Jan Mayen,
+SLB,Solomon Islands,28
+SLE,Sierra Leone,217
+SLV,El Salvador,127
+SMR,San Marino,
+SOM,Somalia,187
+SPM,Saint Pierre and Miquelon,
+SRB,Serbia,53
+STP,Sao Tome and Principe,215
+SUR,Suriname,118
+SVK,Slovakia,54
+SVN,Slovenia,55
+SWE,Sweden,93
+SWZ,Swaziland,197
+SYC,Seychelles,186
+SYR,Syrian Arab Republic,153
+TCA,Turks and Caicos Islands,
+TCD,Chad,204
+TGO,Togo,218
+THA,Thailand,18
+TJK,Tajikistan,39
+TKL,Tokelau,
+TKM,Turkmenistan,40
+TLS,Timor-Leste,19
+TON,Tonga,29
+TTO,Trinidad and Tobago,119
+TUN,Tunisia,154
+TUR,Turkey,155
+TUV,Tuvalu,
+TWN,Taiwan,8
+TZA,"Tanzania, United Republic of",189
+UGA,Uganda,190
+UKR,Ukraine,63
+UMI,United States Minor Outlying Islands,
+URY,Uruguay,99
+USA,United States,102
+UZB,Uzbekistan,41
+VAT,Holy See (Vatican City State),
+VCT,Saint Vincent and the Grenadines,117
+VEN,"Venezuela, Bolivarian Republic of",133
+VGB,"Virgin Islands, British",
+VIR,"Virgin Islands, U.S.",422
+VNM,Viet Nam,20
+VUT,Vanuatu,30
+WLF,Wallis and Futuna,
+WSM,Samoa,27
+YEM,Yemen,157
+ZAF,South Africa,196
+ZMB,Zambia,191
+ZWE,Zimbabwe,198
+SSD,South Sudan,435
+FSM,Federated States of Micronesia,25
+BES,"Bonaire, Sint Eustatius and Saba",
+CUW,Curacao,
+SXM,Sint Maarten,
